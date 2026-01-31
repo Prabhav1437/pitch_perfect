@@ -20,8 +20,10 @@ export default function Home() {
     formData.append('file', file);
     formData.append('problem_statement', problemStatement);
 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
     try {
-      const response = await fetch('http://127.0.0.1:8000/evaluate', {
+      const response = await fetch(`${apiUrl}/evaluate`, {
         method: 'POST',
         body: formData,
       });
