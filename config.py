@@ -38,37 +38,48 @@ class Config:
     SCORE_CATEGORIES = ["relevance", "clarity", "technical_accuracy", "structure", "completeness"]
     
     # Prompt Templates
-    EVALUATION_PROMPT_TEMPLATE = """You are a critical HACKATHON JUDGE at a top-tier tech competition. Analyze the following pitch deck/presentation against the problem statement.
-    Be strict, look for innovation, and demand technical proof. Return ONLY valid JSON.
+    EVALUATION_PROMPT_TEMPLATE = """You are a highly critical and experienced JUDGE at the SMART INDIA HACKATHON (SIH).
+    Your job is to evaluate the following project presentation against the problem statement.
+    You must NOT be generic. You must look for Innovation, Technical Feasibility, and Real-world Impact.
     
     PROBLEM STATEMENT:
     {problem_statement}
     
-    PRESENTATION CONTENT:
+    PRESENTATION CONTENT (Extracted Text):
     {presentation_summary}
     
-    EVALUATION CRITERIA (HACKATHON STANDARDS):
-    1. Relevance (0-10): Problem/Solution Fit. Does it solve a real, significant pain point?
-    2. Clarity (0-10): Pitch Quality. Is the storytelling compelling and the value prop clear?
-    3. Technical Accuracy (0-10): Feasibility & Engineering. Is the tech stack appropriate? Is it more than just a wrapper?
-    4. Structure (0-10): Narrative Flow. Does it follow: Problem -> Solution -> Tech -> Business -> Ask?
-    5. Completeness (0-10): MVP Status. Is there a demo/prototype? Is the roadmap realistic?
+    EVALUATION GUIDELINES (SIH STANDARDS):
+    1. Relevance (0-10): Does this explicitly solve the PS? Is it a "force fit" or a genuine solution?
+    2. Clarity (0-10): Is the pitch easy to understand? Did they explain "HOW" it works, not just "WHAT" it is?
+    3. Technical Technical Accuracy (0-10): Is the tech stack strictly defined? Is the architecture sound? Penalize for buzzwords without substance.
+    4. Structure (0-10): Flow: Problem -> Solution -> Architecture -> USP -> Business -> Team.
+    5. Completeness (0-10): Is there evidence of a working prototype? Diagrams? Wireframes? Pure theory gets low scores.
     
-    Return ONLY this JSON structure with no additional text:
+    RETURN ONLY THIS JSON (No markdown, no text outside JSON):
     {{
       "scores": {{
-        "relevance": <0-10>,
-        "clarity": <0-10>,
-        "technical_accuracy": <0-10>,
-        "structure": <0-10>,
-        "completeness": <0-10>
+        "relevance": <int>,
+        "clarity": <int>,
+        "technical_accuracy": <int>,
+        "structure": <int>,
+        "completeness": <int>
       }},
-      "overall_score": <sum of above>,
-      "strengths": [<3 specific, detailed compliments on Innovation/Tech/Impact (at least 20 words each). Cite specific slides/features.>],
-      "weaknesses": [<3 specific, critical flaws in Feasibility/Business/MVP (at least 20 words each). Be tough.>],
-      "improvement_suggestions": [<3 actionable, expert advice on how to win the hackathon (at least 20 words each). Focus on features, pitch delivery, or biz model.>],
-      "missing_elements": [<list of specific missing hackathon essentials (e.g., "Demo Video", "Revenue Model", "competitor differentiator")>],
-      "summary_evaluation": "<Comprehensive 3-5 sentence judge's verdict. Would you fund this? Is it hackathon-winning material? be direct.>"
+      "overall_score": <sum of scores>,
+      "strengths": [
+        "<Strict compliment 1: Cite specific tech features/innovation from the inputs>",
+        "<Strict compliment 2: Cite specific business/impact potential>"
+      ],
+      "weaknesses": [
+        "<Critical flaw 1: E.g., 'Stack undefined', 'Revenue model missing'>",
+        "<Critical flaw 2: E.g., 'No complexity', 'Just a wrapper'>"
+      ],
+      "detailed_analysis": {{
+        "technical_depth": "<Analyze the stack. If they mentioned React/Python/AI, evaluate how they are used. If vague, say 'Vague Tech Stack'. Length: 50 words.>",
+        "business_viability": "<Is this market-ready? Who pays? Is it sustainable? Length: 50 words.>",
+        "presentation_flow": "<Did they tell a story? Was the flow logical? Length: 50 words.>"
+      }},
+      "missing_elements": ["<Missing Item 1>", "<Missing Item 2>"],
+      "summary_evaluation": "<Final Verdict: FUNDABLE / PROMISING / REJECT. Explain why in 2 sentences.>"
     }}"""
 
     # Cache Directory

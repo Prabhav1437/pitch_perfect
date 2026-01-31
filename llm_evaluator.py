@@ -133,12 +133,17 @@ class LLMEvaluator:
         # Calculate overall score
         response["overall_score"] = sum(response["scores"].values())
         
-        # Ensure list fields exist and have content
-        for field in ["strengths", "weaknesses", "improvement_suggestions", "missing_elements"]:
-            if field not in response or not isinstance(response[field], list):
-                response[field] = ["Not specified"]
-            elif len(response[field]) == 0:
-                response[field] = ["Not specified"]
+        # Ensure detailed_analysis exists
+        if "detailed_analysis" not in response or not isinstance(response["detailed_analysis"], dict):
+             # Try to migrate from suggestions if old model used
+             suggestions = response.get("improvement_suggestions", ["Analysis is brief."])
+             combined_suggestions = " ".join(suggestions) if isinstance(suggestions, list) else str(suggestions)
+             
+             response["detailed_analysis"] = {
+                 "technical_depth": f"Technical review pending. {combined_suggestions}",
+                 "business_viability": "Market impact analysis required.",
+                 "presentation_flow": "Structure needs further evaluation."
+             }
         
         # Ensure summary exists
         if "summary_evaluation" not in response or not response["summary_evaluation"]:
@@ -329,11 +334,12 @@ class LLMEvaluator:
         else:
             weaknesses.append("The competitive analysis feels light. You need to explicitly state why you are 10x better than existing solution X or Y.")
 
-        # Suggestions (How to Win)
-        suggestions = []
-        suggestions.append("IMMEDIATE ACTION: Record a 2-minute Loom video walking through the prototype and embed the link or screenshot in the 'Solution' slide.")
-        suggestions.append("Add a 'System Architecture' slide. Visually map out how your frontend talks to the backend/AI. Judges love seeing the data flow.")
-        suggestions.append("Quantify the impact. Instead of saying 'it helps users', say 'Reduces processing time by 40%' or 'Unlocks a $5B market'. Numbers win hackathons.")
+        # Detailed Analysis (Replacements for Suggestions)
+        detailed_analysis = {
+            "technical_depth": f"The proposed solution {'demonstrates a strong engineering foundation' if has_tech_depth else 'lacks sufficient technical specificity'}. {'The stack includes ' + ', '.join(detected_tech) + '.' if detected_tech else 'No clear tech stack was identified.'} Architecture validation required.",
+            "business_viability": f"{'A clear business model was detected' if has_biz_plan else 'Commercial viability is unclear'}. The presentation {'addresses' if has_biz_plan else 'fails to address'} market fit and revenue streams adequately for a venture-backed track.",
+            "presentation_flow": f"The narrative structure scores {structure_score}/10. It {'successfully' if structure_score > 7 else 'partially'} follows standard pitch deck conventions (Problem->Solution->Tech->Biz). Visual clarity baseline estimated at {clarity_score}/10."
+        }
 
         # Summary Generation
         verdict = "FUNDABLE" if overall_score > 40 else "PROMISING" if overall_score > 30 else "NEEDS WORK"
@@ -349,7 +355,7 @@ class LLMEvaluator:
             "overall_score": overall_score,
             "strengths": strengths,
             "weaknesses": weaknesses,
-            "improvement_suggestions": suggestions,
+            "detailed_analysis": detailed_analysis,
             "missing_elements": ["Live Demo Link", "System Architecture Diagram", "Go-to-Market Strategy"],
             "summary_evaluation": summary_eval
         }
