@@ -38,6 +38,7 @@ class EvaluationResponse(BaseModel):
     missing_elements: List[str] = Field(..., description="Missing key elements")
     summary_evaluation: str = Field(..., min_length=10, description="Overall assessment")
     metadata: Optional[EvaluationMetadata] = Field(None, description="Additional metadata")
+    presentation_summary: Optional[str] = Field(None, description="Raw summary of the presentation content")
     
     @validator('overall_score', always=True)
     def validate_overall_score(cls, v, values):
@@ -61,3 +62,25 @@ class HealthResponse(BaseModel):
     status: str
     device_info: Dict[str, Any]
     models_loaded: Dict[str, bool]
+
+
+class ReconstructionRequest(BaseModel):
+    """Request for initial PPT reconstruction."""
+    presentation_summary: str
+    problem_statement: str
+    analysis: Dict[str, Any]
+    custom_instructions: Optional[str] = None
+
+
+class ReconstructionChatRequest(BaseModel):
+    """Request for refining the PPT based on chat."""
+    current_structure: Dict[str, Any]
+    user_message: str
+    presentation_summary: str
+
+
+class ReconstructionResponse(BaseModel):
+    """Response with new PPT structure and download link."""
+    structure: Dict[str, Any]
+    file_path: str
+    download_url: str

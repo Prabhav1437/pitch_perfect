@@ -228,6 +228,61 @@ class LLMEvaluator:
         logger.warning("All evaluation attempts failed. Returning default evaluation.")
         return self.get_default_evaluation(problem_statement, presentation_summary)
     
+    def generate_response(
+        self,
+        prompt: str,
+        max_new_tokens: int = 1024,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        Generate generic response from LLM.
+        
+        Args:
+            prompt: Input text/prompt
+            max_new_tokens: Maximum tokens to generate
+            temperature: Sampling temperature
+            
+        Returns:
+            Generated text string
+        """
+        self.load_model()
+        
+        try:
+            # Tokenize input
+            inputs = self.tokenizer(
+                prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=4096
+            ).to(self.device)
+            
+            # Generate response
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=Config.LLM_TOP_P,
+                    do_sample=True if temperature > 0 else False,
+                    pad_token_id=self.tokenizer.eos_token_id
+                )
+            
+            # Decode response
+            response_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            
+            # Clean up response if needed (remove prompt repetition if model does that)
+            # Instruct models often repeat the prompt or have specific update tokens
+            if "[/INST]" in response_text:
+                response_text = response_text.split("[/INST]")[-1].strip()
+            elif "Response:" in response_text:
+                response_text = response_text.split("Response:")[-1].strip()
+                
+            return response_text
+            
+        except Exception as e:
+            logger.error(f"Error generating response: {str(e)}")
+            return f"Error creating content: {str(e)}"
+
     def generate_heuristic_evaluation(self, problem_statement: str, presentation_summary: str) -> Dict:
         """
         Generate a HACKATHON-GRADE heuristic evaluation when LLM fails.

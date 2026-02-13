@@ -94,6 +94,7 @@ class EvaluationOrchestrator:
                 "llm_relevance_score": original_relevance,
                 "adjusted_relevance_score": adjusted_relevance
             }
+            llm_evaluation["presentation_summary"] = presentation_summary
             
             logger.info("=" * 60)
             logger.info(f"Evaluation complete! Overall score: {llm_evaluation['overall_score']}/50")

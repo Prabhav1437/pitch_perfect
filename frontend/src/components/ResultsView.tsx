@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, XCircle, FileText, BrainCircuit, TrendingUp, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MetricBar } from './MetricBar';
+import ReconstructionPanel from './ReconstructionPanel';
 
 interface EvaluationResult {
     scores: {
@@ -23,6 +24,7 @@ interface EvaluationResult {
     };
     missing_elements: string[];
     summary_evaluation: string;
+    presentation_summary?: string;
     // Backward compatibility just in case
     improvement_suggestions?: string[];
 }
@@ -227,6 +229,17 @@ export default function ResultsView({ result, onReset }: ResultsViewProps) {
 
                 </div>
             </div>
+
+            {/* 3. Reconstruction Panel */}
+            <ReconstructionPanel
+                summary={result.presentation_summary || "Summary not available"}
+                problemStatement="Analyze and improve based on feedback."
+                analysis={{
+                    weaknesses: result.weaknesses,
+                    missing_elements: result.missing_elements,
+                    detailed_analysis: result.detailed_analysis
+                }}
+            />
 
             <div className="flex justify-center pt-10">
                 <button

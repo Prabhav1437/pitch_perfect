@@ -1,17 +1,19 @@
+
 """
 FastAPI application for presentation evaluation.
 """
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import logging
 from pathlib import Path
 import tempfile
 import os
 
 from evaluation_orchestrator import EvaluationOrchestrator
-from models import EvaluationResponse, HealthResponse
+from models import EvaluationResponse, HealthResponse, ReconstructionRequest, ReconstructionChatRequest, ReconstructionResponse
 from config import Config
+from ppt_reconstructor import PPTReconstructor
 
 # Configure logging
 logging.basicConfig(
@@ -38,9 +40,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files for generated PPTs
+# Ensure directory exists first
+generated_ppts_dir = Path("generated_ppts")
+generated_ppts_dir.mkdir(exist_ok=True)
+app.mount("/generated", StaticFiles(directory="generated_ppts"), name="generated")
+
 # Initialize orchestrator (lazy loading of models)
 orchestrator = None
-
+reconstructor = None
 
 def get_orchestrator() -> EvaluationOrchestrator:
     """Get or create orchestrator instance."""
@@ -49,6 +57,29 @@ def get_orchestrator() -> EvaluationOrchestrator:
         logger.info("Initializing evaluation orchestrator...")
         orchestrator = EvaluationOrchestrator()
     return orchestrator
+
+def get_reconstructor() -> PPTReconstructor:
+    """Get or create reconstructor instance."""
+    global reconstructor
+    if reconstructor is None:
+        logger.info("Initializing PPT reconstructor...")
+        orch = get_orchestrator()
+        
+        # Initialize Gemini Evaluator
+        from gemini_evaluator import GeminiEvaluator
+        gemini_api_key = os.environ.get("GEMINI_API_KEY")
+        gemini_evaluator = GeminiEvaluator(api_key=gemini_api_key)
+        
+        # Use local backend directory for generated files
+        output_dir = Path("generated_ppts")
+        output_dir.mkdir(exist_ok=True)
+        
+        reconstructor = PPTReconstructor(
+            gemini_evaluator=gemini_evaluator,
+            llm_evaluator=orch.llm_evaluator,
+            output_dir=str(output_dir)
+        )
+    return reconstructor
 
 
 @app.on_event("startup")
@@ -109,20 +140,6 @@ async def evaluate_presentation(
 ):
     """
     Evaluate a PowerPoint presentation.
-    
-    **Parameters:**
-    - **file**: PowerPoint file (.pptx format)
-    - **problem_statement**: The problem statement or evaluation rubric to compare against
-    
-    **Returns:**
-    - Structured evaluation with scores, feedback, and suggestions
-    
-    **Example:**
-    ```bash
-    curl -X POST "http://localhost:8000/evaluate" \\
-      -F "file=@presentation.pptx" \\
-      -F "problem_statement=Build a web scraper for e-commerce websites"
-    ```
     """
     # Validate file extension
     if not file.filename.endswith('.pptx'):
@@ -192,6 +209,74 @@ async def evaluate_presentation(
             except Exception as e:
                 logger.warning(f"Failed to clean up temp file: {e}")
 
+@app.post("/reconstruct", response_model=ReconstructionResponse, tags=["Reconstruction"])
+async def reconstruct_presentation_endpoint(request: ReconstructionRequest):
+    """
+    Reconstruct a PPT based on evaluation analysis.
+    """
+    try:
+        logger.info("Starting PPT reconstruction...")
+        rec = get_reconstructor()
+        result = rec.reconstruct_presentation(
+            summary=request.presentation_summary,
+            problem_statement=request.problem_statement,
+            analysis=request.analysis,
+            custom_instructions=request.custom_instructions
+        )
+        
+        # Calculate URL served by backend
+        file_path = Path(result["file_path"])
+        file_name = file_path.name
+        download_url = f"/generated/{file_name}"
+        
+        return ReconstructionResponse(
+            structure=result["structure"],
+            file_path=str(file_path),
+            download_url=download_url
+        )
+        
+    except Exception as e:
+        logger.error(f"Reconstruction failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Reconstruction failed: {str(e)}"
+        )
+
+
+@app.post("/reconstruct/chat", response_model=ReconstructionResponse, tags=["Reconstruction"])
+async def chat_reconstruction_endpoint(request: ReconstructionChatRequest):
+    """
+    Refine PPT structure via chat.
+    """
+    try:
+        logger.info(f"Processing chat instruction: {request.user_message[:50]}...")
+        rec = get_reconstructor()
+        result = rec.refine_structure(
+            current_structure=request.current_structure,
+            user_instruction=request.user_message,
+            presentation_summary=request.presentation_summary
+        )
+        
+        if not result["file_path"]:
+             raise Exception("Failed to generate refined PPT")
+
+        # Calculate URL served by backend
+        file_path = Path(result["file_path"])
+        file_name = file_path.name
+        download_url = f"/generated/{file_name}"
+        
+        return ReconstructionResponse(
+            structure=result["structure"],
+            file_path=str(file_path),
+            download_url=download_url
+        )
+        
+    except Exception as e:
+        logger.error(f"Chat refinement failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Chat refinement failed: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn
